@@ -18,6 +18,8 @@ import uuid
 import random
 import string
 import hashlib
+from flask import Flask
+import threading
 from pyrogram.types.messages_and_media import message
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.errors import FloodWait
@@ -37,6 +39,25 @@ THREADPOOL = ThreadPoolExecutor(max_workers=1000)
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Bot credentials from environment variables (Render compatible)
+API_ID = int(os.environ.get("API_ID", 25464948))
+API_HASH = os.environ.get("API_HASH", "")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+
+# Initialize Bot Globally (IMPORTANT FIX)
+bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+        
+# Flask app for Render
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+def run_flask():
+    app.run(host="0.0.0.0", port=8080) # Use here 8080 port,if you are deploying it on koyeb
+    
 image_list = [
 "https://graph.org/file/8b1f4146a8d6b43e5b2bc-be490579da043504d5.jpg",
 "https://graph.org/file/b75dab2b3f7eaff612391-282aa53538fd3198d4.jpg",
@@ -45,24 +66,21 @@ image_list = [
 "https://graph.org/file/8b7e3d10e362a2850ba0a-f7c7c46e9f4f50b10b.jpg",
 ]
 print(4321)
-bot = Client(
-    "bot",
-    api_id=api_id,
-    api_hash=api_hash,
-    bot_token=bot_token)
+#bot = Client(
+    #"bot",
+    #api_id=api_id,
+    #api_hash=api_hash,
+    #bot_token=bot_token)
 
 @bot.on_message(filters.command(["start"]))
 async def start(bot, message):
   random_image_url = random.choice(image_list)
 
-  keyboard = [
-    [
-      InlineKeyboardButton("🚀 Physics Wallah without Purchase 🚀", callback_data="pwwp")
-    ],
-    [
-      InlineKeyboardButton("📘 Classplus without Purchase 📘", callback_data="cpwp")
-    ]
-  ]
+  keyboard = [ 
+      [InlineKeyboardButton("🚀 Physics Wallah without Purchase 🚀", callback_data="pwwp")],
+      [InlineKeyboardButton("🚀 Classplus without Purchase 🚀", callback_data="cpwp")]
+ ]
+  
 
   reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -72,13 +90,15 @@ async def start(bot, message):
     quote=True,
     reply_markup=reply_markup
   )
+  
 @bot.on_message(group=2)
 #async def account_login(bot: Client, m: Message):
 #    try:
 #        await bot.forward_messages(chat_id=chat_id, from_chat_id=m.chat.id, message_ids=m.id)
 #    except:
 #        pass
-        
+
+# Pw Function 
 async def fetch_pwwp_data(session: aiohttp.ClientSession, url: str, headers: Dict = None, params: Dict = None, data: Dict = None, method: str = 'GET') -> Any:
     max_retries = 3
     for attempt in range(max_retries):
@@ -339,7 +359,7 @@ async def pwwp_callback(bot, callback_query):
     await callback_query.answer()
     
     if user_id not in auth_users:
-        await bot.send_message(callback_query.message.chat.id, f"**You Are Not Subscribed To This Bot\nContact - @pwextractowner**")
+        await bot.send_message(callback_query.message.chat.id, f"**You Are Not Subscribed To This Bot DM for access @DREAMM_CA**")
         return
         
     THREADPOOL.submit(asyncio.run, process_pwwp(bot, callback_query.message, user_id))
@@ -609,7 +629,9 @@ async def process_pwwp(bot: Client, m: Message, user_id: int):
             if session:
                 await session.close()
             await CONNECTOR.close()
-            
+
+
+# Cp Function 
 async def fetch_cpwp_signed_url(url_val: str, name: str, session: aiohttp.ClientSession, headers: Dict[str, str]) -> str | None:
     MAX_RETRIES = 3
     for attempt in range(MAX_RETRIES):
@@ -761,14 +783,14 @@ async def get_cpwp_course_content(session: aiohttp.ClientSession, headers: Dict[
             logging.error(f"Error processing folder {folder_id}: {e}")
 
     return results, video_count, pdf_count, image_count
-    
+
 @bot.on_callback_query(filters.regex("^cpwp$"))
 async def cpwp_callback(bot, callback_query):
     user_id = callback_query.from_user.id
     await callback_query.answer()
     
     if user_id not in auth_users:
-        await bot.send_message(callback_query.message.chat.id, f"**You Are Not Subscribed To This Bot\nContact - @pwextractowner**")
+        await bot.send_message(callback_query.message.chat.id, f"**You Are Not Subscribed To This Bot**")
         return
             
     THREADPOOL.submit(asyncio.run, process_cpwp(bot, callback_query.message, user_id))
@@ -990,5 +1012,8 @@ async def process_cpwp(bot: Client, m: Message, user_id: int):
             await session.close()
             await CONNECTOR.close()
 
-                                        
-bot.run()
+ # Start Flask + Bot
+if __name__ == "__main__":
+    threading.Thread(target=run_flask).start()
+    bot.run()                      
+#bot.run()
